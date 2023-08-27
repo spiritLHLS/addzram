@@ -55,8 +55,9 @@ add_zram() {
       exit 1
     fi
     modprobe zram
-    zramctl /dev/zram0 --algorithm zstd --size "${zram_size}M"
-    mkswap /dev/zram0
+    zramctl --find --size "${zram_size}MB" --algorithm zstd
+    # zramctl /dev/zram0 --algorithm zstd --size "${zram_size}M"
+    # mkswap /dev/zram0
     swapon --priority 100 /dev/zram0
     echo "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and algorithm zstd is now active as swap."
     echo "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时 zstd 已激活成为swap的一部分"
