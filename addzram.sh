@@ -32,7 +32,7 @@ check_root() {
 add_zram() {
   modprobe zram
   if [ $? -ne 0 ]; then
-    _yellow "Not find zram module, please install it with zram-tools or etc."
+    _yellow "Not find zram module, please install it in kernel manually."
     exit 1
   fi
   _green "Please configure and add zram with the size of half the available memory!"
