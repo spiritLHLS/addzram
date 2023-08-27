@@ -7,3 +7,5 @@
 ```bash
 curl -L https://raw.githubusercontent.com/spiritLHLS/addzram/main/addzram.sh -o addzram.sh && chmod +x addzram.sh && bash addzram.sh
 ```
+
+### 单位换算：输入 1024 产生 1G 的 zram 设备压缩内存，zram 设备大小不能大于实际内存大小
