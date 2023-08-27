@@ -54,6 +54,7 @@ add_zram() {
       _yellow "mkswap or swapon command not found. Please make sure these commands are installed."
       exit 1
     fi
+    modprobe zram
     zramctl /dev/zram0 --algorithm zstd --size "${zram_size}M"
     mkswap /dev/zram0
     swapon --priority 100 /dev/zram0
