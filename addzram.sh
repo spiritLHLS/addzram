@@ -63,8 +63,8 @@ add_zram() {
   fi
   mkswap /dev/zram0
   swapon --priority 100 /dev/zram0
-  echo "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and algorithm zstd is now active as swap."
-  echo "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时 zstd 已激活成为swap的一部分"
+  _green "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and algorithm zstd is now active as swap."
+  _blue "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时 zstd 已激活成为swap的一部分"
   check_zram
 }
 
@@ -72,11 +72,17 @@ del_zram() {
   if [ -e "$zram_device" ]; then
       echo "ZRAM device $zram_device exists and is being deleted..."
       echo "ZRAM 设备 $zram_device 存在，正在删除..."
-      swapoff "$zram_device"
-      zramctl --reset "$zram_device"
+      swapoff "$zram_device" && zramctl --reset "$zram_device"
+      if [ $? -ne 0 ]; then
+        _yellow "Deletion failed, please check the log yourself."
+        _yellow "删除失败，请自行检查日志。"
+      else
+        _green "Deleted successfully!"
+        _blue "删除成功！"
+      fi
   else
-      echo "ZRAM device $zram_device does not exist and cannot be deleted."
-      echo "ZRAM 设备 $zram_device 不存在，无法删除。"
+      _yellow "ZRAM device $zram_device does not exist and cannot be deleted."
+      _blue "ZRAM 设备 $zram_device 不存在，无法删除。"
   fi
   check_zram
 }
