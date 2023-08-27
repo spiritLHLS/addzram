@@ -22,6 +22,7 @@ _green() { echo -e "\033[32m\033[01m$@\033[0m"; }
 _yellow() { echo -e "\033[33m\033[01m$@\033[0m"; }
 _blue() { echo -e "\033[36m\033[01m$@\033[0m"; }
 reading() { read -rp "$(_green "$1")" "$2"; }
+zram_device="/dev/zram0"
 
 # 必须以root运行脚本
 check_root() {
@@ -29,42 +30,57 @@ check_root() {
 }
 
 add_zram() {
-  _green "Please configure and add zram with the size of half the available memory!"
-  _green "请输入需要添加的zram，建议为内存的一半！"
-  _green "Please enter the zram value in megabytes (MB) (leave blank and press Enter for default, which is half of the memory):"
-  reading "请输入zram数值，以MB计算(留空回车则默认为内存的一半):" zram_size
-  if [ -z "$zram_size" ]; then
-    total_memory=$(free -m | awk '/^Mem:/{print $2}')
-    zram_size=$((total_memory / 2))
+  if [ -e "$zram_device" ]; then
+    echo "ZRAM device $zram_device exists."
+    echo "ZRAM 设备 $zram_device 已存在。"
+  else
+    _green "Please configure and add zram with the size of half the available memory!"
+    _green "请输入需要添加的zram，建议为内存的一半！"
+    _green "Please enter the zram value in megabytes (MB) (leave blank and press Enter for default, which is half of the memory):"
+    reading "请输入zram数值，以MB计算(留空回车则默认为内存的一半):" zram_size
+    if [ -z "$zram_size" ]; then
+      total_memory=$(free -m | awk '/^Mem:/{print $2}')
+      zram_size=$((total_memory / 2))
+    fi
+    if ! lsmod | grep -q zram; then
+      echo "Loading zram module..."
+      modprobe zram
+    fi
+    if ! command -v zramctl >/dev/null; then
+      _yellow "zramctl command not found. Please make sure zramctl is installed."
+      exit 1
+    fi
+    if ! command -v mkswap >/dev/null || ! command -v swapon >/dev/null; then
+      _yellow "mkswap or swapon command not found. Please make sure these commands are installed."
+      exit 1
+    fi
+    zramctl /dev/zram0 --algorithm zstd --size "${zram_size}M"
+    mkswap /dev/zram0
+    swapon --priority 100 /dev/zram0
+    echo "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and algorithm zstd is now active as swap."
+    echo "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时 zstd 已激活成为swap的一部分"
+    check_zram
   fi
-  if ! lsmod | grep -q zram; then
-    echo "Loading zram module..."
-    modprobe zram
-  fi
-  if ! command -v zramctl >/dev/null; then
-    _yellow "zramctl command not found. Please make sure zramctl is installed."
-    exit 1
-  fi
-  if ! command -v mkswap >/dev/null || ! command -v swapon >/dev/null; then
-    _yellow "mkswap or swapon command not found. Please make sure these commands are installed."
-    exit 1
-  fi
-  zramctl /dev/zram0 --algorithm zstd --size "${zram_size}M"
-  mkswap /dev/zram0
-  swapon --priority 100 /dev/zram0
-  echo "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and algorithm zstd is now active as swap."
-  echo "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时 zstd 已激活成为swap的一部分"
-  check_zram
 }
 
 del_zram() {
-  swapoff /dev/zram0
-  zramctl --reset /dev/zram0
+  if [ -e "$zram_device" ]; then
+      echo "ZRAM device $zram_device exists and is being deleted..."
+      echo "ZRAM 设备 $zram_device 存在，正在删除..."
+      swapoff "$zram_device"
+      zramctl --reset "$zram_device"
+  else
+      echo "ZRAM device $zram_device does not exist and cannot be deleted."
+      echo "ZRAM 设备 $zram_device 不存在，无法删除。"
+  fi
   check_zram
 }
 
 check_zram() {
-  zramctl 2>/dev/null
+  if [ -e "$zram_device" ]; then
+    zramctl
+    echo ""
+  fi
   swapon --show
 }
 
