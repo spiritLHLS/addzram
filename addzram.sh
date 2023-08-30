@@ -1,7 +1,7 @@
 #!/bin/bash
 #From https://github.com/spiritLHLS/addzram
 #Channel: https://t.me/vps_reviews
-#2023.08.27
+#2023.08.30
 
 utf8_locale=$(locale -a 2>/dev/null | grep -i -m 1 -E "UTF-8|utf8")
 if [[ -z "$utf8_locale" ]]; then
@@ -11,6 +11,9 @@ else
   export LANG="$utf8_locale"
   export LANGUAGE="$utf8_locale"
   echo "Locale set to $utf8_locale"
+fi
+if [ ! -d /usr/local/bin ]; then
+    mkdir -p /usr/local/bin
 fi
 
 # 自定义字体彩色和其他配置
@@ -35,13 +38,16 @@ add_zram() {
     _yellow "Not find zram module, please install it in kernel manually."
     exit 1
   fi
-  _green "Please configure and add zram with the size of half the available memory!"
-  _green "请输入需要添加的zram，建议为内存的一半！"
-  _green "Please enter the zram value in megabytes (MB) (leave blank and press Enter for default, which is half of the memory):"
-  reading "请输入zram数值，以MB计算(留空回车则默认为内存的一半):" zram_size
-  if [ -z "$zram_size" ]; then
-    total_memory=$(free -m | awk '/^Mem:/{print $2}')
-    zram_size=$((total_memory / 2))
+  if [ -f /sys/block/zram0/comp_algorithm]; then
+    rm -rf /usr/local/bin/zram_algorithm
+    output=$(cat /sys/block/zram0/comp_algorithm)
+    IFS=' ' read -ra words <<< "$output"
+    for word in "${words[@]}"; do
+        if ! echo "$word" | grep -qE '^[0-9]+$'; then
+            clean_word="${word//[\[\]]/}"
+            echo "$clean_word" >> /usr/local/bin/zram_algorithm
+        fi
+    done
   fi
   if ! command -v zramctl >/dev/null; then
     _yellow "zramctl command not found. Please make sure zramctl is installed."
@@ -51,10 +57,35 @@ add_zram() {
     _yellow "mkswap or swapon command not found. Please make sure these commands are installed."
     exit 1
   fi
-  if [ -d "/sys/block/zram0" ]; then
-    zramctl /dev/zram0 --algorithm zstd --size "${zram_size}M"
+  readarray -t lines < /usr/local/bin/zram_algorithm
+  for (( i=0; i<${#lines[@]}; i++ )); do
+      if [[ "${lines[$i]}" == *"zstd"* ]]; then
+          # 移动元素到第一位
+          temp="${lines[$i]}"
+          unset lines[$i]
+          lines=("$temp" "${lines[@]}")
+      fi
+  done
+  for i in "${!lines[@]}"; do
+      _blue "[$i] ${lines[$i]}"
+  done
+  _green "Enter the serial number of the algorithm to be used (leaving a blank carriage return defaults to zstd):"
+  reading "请输入要使用的算法的序号(留空回车则默认zstd):" selected_index
+  if [[ $selected_index =~ ^[0-9]+$ ]] && [ "$selected_index" -ge 0 ] && [ "$selected_index" -lt "${#lines[@]}" ]; then
+      selected_algorithm="${lines[$selected_index]}"
   else
-    zramctl --find --size "${zram_size}MB" --algorithm zstd
+      selected_algorithm="zstd"
+  fi
+  _green "Please enter the zram value in megabytes (MB) (leave blank and press Enter for default, which is half of the memory):"
+  reading "请输入zram数值，以MB计算(留空回车则默认为内存的一半):" zram_size
+  if [ -z "$zram_size" ]; then
+    total_memory=$(free -m | awk '/^Mem:/{print $2}')
+    zram_size=$((total_memory / 2))
+  fi
+  if [ -d "/sys/block/zram0" ]; then
+    zramctl /dev/zram0 --algorithm ${selected_algorithm} --size "${zram_size}M"
+  else
+    zramctl --find --size "${zram_size}MB" --algorithm "${selected_algorithm}"
   fi
   if [ $? -ne 0 ]; then
     echo "ZRAM device $zram_device exists, cannot be duplicated, if you need to reset, please select ‘Remove zram’ first."
@@ -63,8 +94,8 @@ add_zram() {
   fi
   mkswap /dev/zram0
   swapon --priority 100 /dev/zram0
-  _green "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and algorithm zstd is now active as swap."
-  _blue "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时 zstd 已激活成为swap的一部分"
+  _green "ZRAM setup complete. ZRAM device /dev/zram0 with size ${zram_size}M and use ${selected_algorithm} algorithm."
+  _blue "ZRAM 设置成功，ZRAM 设备路径为 /dev/zram0 大小为 ${zram_size}M 同时使用 ${selected_algorithm} 算法"
   check_zram
 }
 
