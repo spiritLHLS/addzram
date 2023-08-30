@@ -38,7 +38,7 @@ add_zram() {
     _yellow "Not find zram module, please install it in kernel manually."
     exit 1
   fi
-  if [ -f /sys/block/zram0/comp_algorithm]; then
+  if [ -f /sys/block/zram0/comp_algorithm ]; then
     rm -rf /usr/local/bin/zram_algorithm
     output=$(cat /sys/block/zram0/comp_algorithm)
     IFS=' ' read -ra words <<< "$output"
