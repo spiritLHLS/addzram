@@ -13,7 +13,7 @@ else
   echo "Locale set to $utf8_locale"
 fi
 if [ ! -d /usr/local/bin ]; then
-    mkdir -p /usr/local/bin
+  mkdir -p /usr/local/bin
 fi
 
 # 自定义字体彩色和其他配置
@@ -41,12 +41,12 @@ add_zram() {
   if [ -f /sys/block/zram0/comp_algorithm ]; then
     rm -rf /usr/local/bin/zram_algorithm
     output=$(cat /sys/block/zram0/comp_algorithm)
-    IFS=' ' read -ra words <<< "$output"
+    IFS=' ' read -ra words <<<"$output"
     for word in "${words[@]}"; do
-        if ! echo "$word" | grep -qE '^[0-9]+$'; then
-            clean_word="${word//[\[\]]/}"
-            echo "$clean_word" >> /usr/local/bin/zram_algorithm
-        fi
+      if ! echo "$word" | grep -qE '^[0-9]+$'; then
+        clean_word="${word//[\[\]]/}"
+        echo "$clean_word" >>/usr/local/bin/zram_algorithm
+      fi
     done
   fi
   if ! command -v zramctl >/dev/null; then
@@ -57,24 +57,24 @@ add_zram() {
     _yellow "mkswap or swapon command not found. Please make sure these commands are installed."
     exit 1
   fi
-  readarray -t lines < /usr/local/bin/zram_algorithm
-  for (( i=0; i<${#lines[@]}; i++ )); do
-      if [[ "${lines[$i]}" == *"zstd"* ]]; then
-          # 移动元素到第一位
-          temp="${lines[$i]}"
-          unset lines[$i]
-          lines=("$temp" "${lines[@]}")
-      fi
+  readarray -t lines </usr/local/bin/zram_algorithm
+  for ((i = 0; i < ${#lines[@]}; i++)); do
+    if [[ "${lines[$i]}" == *"zstd"* ]]; then
+      # 移动元素到第一位
+      temp="${lines[$i]}"
+      unset lines[$i]
+      lines=("$temp" "${lines[@]}")
+    fi
   done
   for i in "${!lines[@]}"; do
-      _blue "[$i] ${lines[$i]}"
+    _blue "[$i] ${lines[$i]}"
   done
   _green "Enter the serial number of the algorithm to be used (leaving a blank carriage return defaults to zstd):"
   reading "请输入要使用的算法的序号(留空回车则默认zstd):" selected_index
   if [[ $selected_index =~ ^[0-9]+$ ]] && [ "$selected_index" -ge 0 ] && [ "$selected_index" -lt "${#lines[@]}" ]; then
-      selected_algorithm="${lines[$selected_index]}"
+    selected_algorithm="${lines[$selected_index]}"
   else
-      selected_algorithm="zstd"
+    selected_algorithm="zstd"
   fi
   _green "Please enter the zram value in megabytes (MB) (leave blank and press Enter for default, which is half of the memory):"
   reading "请输入zram数值，以MB计算(留空回车则默认为内存的一半):" zram_size
@@ -101,19 +101,19 @@ add_zram() {
 
 del_zram() {
   if [ -e "$zram_device" ]; then
-      echo "ZRAM device $zram_device exists and is being deleted..."
-      echo "ZRAM 设备 $zram_device 存在，正在删除..."
-      swapoff "$zram_device" && zramctl --reset "$zram_device"
-      if [ $? -ne 0 ]; then
-        _yellow "Deletion failed, please check the log yourself."
-        _yellow "删除失败，请自行检查日志。"
-      else
-        _green "Deleted successfully!"
-        _blue "删除成功！"
-      fi
+    echo "ZRAM device $zram_device exists and is being deleted..."
+    echo "ZRAM 设备 $zram_device 存在，正在删除..."
+    swapoff "$zram_device" && zramctl --reset "$zram_device"
+    if [ $? -ne 0 ]; then
+      _yellow "Deletion failed, please check the log yourself."
+      _yellow "删除失败，请自行检查日志。"
+    else
+      _green "Deleted successfully!"
+      _blue "删除成功！"
+    fi
   else
-      _yellow "ZRAM device $zram_device does not exist and cannot be deleted."
-      _blue "ZRAM 设备 $zram_device 不存在，无法删除。"
+    _yellow "ZRAM device $zram_device does not exist and cannot be deleted."
+    _blue "ZRAM 设备 $zram_device 不存在，无法删除。"
   fi
   check_zram
 }
