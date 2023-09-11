@@ -16,7 +16,7 @@ https://github.com/spiritLHLS/addswap
 
 (理论上zram会比swap的性能占用低，但未实际测试过)
 
-### 单位换算：输入 1024 产生 1G 的 zram 设备压缩内存，zram 设备大小不能大于实际内存大小
+### 单位换算：输入 1024 产生 1G 的 zram 设备压缩内存，zram 设备大小最好不要大于实际内存大小
 
 # 致谢
 
